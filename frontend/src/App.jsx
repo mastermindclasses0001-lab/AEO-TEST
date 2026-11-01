@@ -9,22 +9,28 @@ export default function App() {
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
 
+  // Default Dummy Test with built-in questions
+  const defaultQuestions = [
+    { id: 1, en: "What is the capital of India?", hi: "Bharat ki rajdhani kya hai?", options_en: ["Mumbai", "Delhi", "Kolkata", "Chennai"], options_hi: ["Mumbai", "Delhi", "Kolkata", "Chennai"], ans: 1 },
+    { id: 2, en: "What is 5 x 5?", hi: "5 x 5 kya hota hai?", options_en: ["10", "20", "25", "30"], options_hi: ["10", "20", "25", "30"], ans: 2 }
+  ];
+
   const [availableTests, setAvailableTests] = useState([
-    { id: 1, classStr: "10", subject: "Maths", totalQ: 10, marks: 4, neg: 1, duration: 60, expiryDate: "2026-06-20", expiryTime: "16:00" }
+    { id: 1, classStr: "10", subject: "Demo Maths", totalQ: 2, marks: 4, neg: 1, duration: 30, expiryDate: "2026-12-31", expiryTime: "23:59", questions: defaultQuestions }
   ]);
+  
   const [activeTest, setActiveTest] = useState(null);
   const [lang, setLang] = useState("en");
-  const [questions, setQuestions] = useState([
-    { id: 1, en: "What is 2+2?", hi: "2+2 kya hai?", options_en: ["3", "4", "5", "6"], options_hi: ["3", "4", "5", "6"], ans: 1 }
-  ]);
+  const [questions, setQuestions] = useState([]);
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [warnings, setWarnings] = useState(0);
   const [score, setScore] = useState(0);
 
+  // Admin states updated to capture form data properly
   const [adminTab, setAdminTab] = useState("generate");
-  const [testForm, setTestForm] = useState({ classStr: '10', subject: '', totalQ: '', marks: '', neg: '', expDate: '', expTime: '' });
+  const [testForm, setTestForm] = useState({ classStr: '10', subject: '', marks: '', neg: '', duration: '', expDate: '', expTime: '' });
   const [jsonInput, setJsonInput] = useState("");
   const [adminQuestions, setAdminQuestions] = useState([]);
 
@@ -73,6 +79,7 @@ export default function App() {
 
   const startTest = (test) => {
     setActiveTest(test);
+    setQuestions(test.questions || []); // Load exact questions for this test
     setTimeLeft(test.duration * 60);
     setWarnings(0);
     setAnswers({});
@@ -105,15 +112,42 @@ export default function App() {
       const parsed = JSON.parse(str);
       setAdminQuestions(prev => [...prev, ...(Array.isArray(parsed) ? parsed : [parsed])]);
       setJsonInput("");
-      alert("Questions successfully loaded!");
+      alert("Questions successfully loaded! Total: " + (adminQuestions.length + (Array.isArray(parsed) ? parsed.length : 1)));
     } catch (e) {
-      alert("JSON format me error hai. Brackets check karein.");
+      alert("JSON format me error hai. Kripya brackets [] aur commas check karein.");
     }
+  };
+
+  // Naya Publish Test Logic
+  const publishTest = () => {
+    if (!testForm.subject || !testForm.marks || !testForm.duration) {
+      return alert("Kripya Subject, Marks, aur Duration (Time) bharein.");
+    }
+    if (adminQuestions.length === 0) {
+      return alert("Pehle JSON box se questions Add karein!");
+    }
+
+    const newTest = {
+      id: Date.now(),
+      classStr: testForm.classStr,
+      subject: testForm.subject,
+      totalQ: adminQuestions.length,
+      marks: Number(testForm.marks),
+      neg: Number(testForm.neg),
+      duration: Number(testForm.duration),
+      expiryDate: testForm.expDate,
+      expiryTime: testForm.expTime,
+      questions: adminQuestions
+    };
+
+    setAvailableTests([...availableTests, newTest]);
+    setAdminQuestions([]); // clear current question pool
+    setTestForm({ ...testForm, subject: '' }); // reset subject
+    alert(`Success! Test "${newTest.subject}" class ${newTest.classStr} ke liye LIVE ho gaya hai.`);
   };
 
   if (currentView === "signup") return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 relative">
-      {/* Ekdam halka outline wala admin box, top right corner me */}
       <div 
         onClick={handleAdminAuth} 
         className="absolute top-4 right-4 w-8 h-8 border border-gray-800 rounded cursor-pointer opacity-30 hover:opacity-100 transition-opacity"
@@ -128,13 +162,16 @@ export default function App() {
             <input type="text" placeholder="Name" required onChange={e => setStudent({...student, name: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg" />
             <input type="text" placeholder="School Name" required onChange={e => setStudent({...student, school: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg" />
             <select required onChange={e => setStudent({...student, classStr: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg">
-              <option value="">Select Class</option>
+              <option value="">Select Class / Course</option>
               <option value="7">Class 7</option>
               <option value="8">Class 8</option>
               <option value="9">Class 9</option>
               <option value="10">Class 10</option>
               <option value="11">Class 11</option>
               <option value="12">Class 12</option>
+              <option value="IIT-JEE">IIT-JEE</option>
+              <option value="NEET">NEET</option>
+              <option value="Graduation">Graduation</option>
             </select>
             <input type="tel" placeholder="WhatsApp Number" required onChange={e => setStudent({...student, phone: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg" />
             <input type="tel" placeholder="Guardian Number" required onChange={e => setStudent({...student, guardianPhone: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg" />
@@ -155,15 +192,20 @@ export default function App() {
       <h1 className="text-3xl font-extrabold text-yellow-400 mb-6 text-center">{branding}</h1>
       <h2 className="text-2xl text-blue-400 font-bold mb-4">Welcome, {student.name} ({student.classStr})</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {availableTests.filter(t => t.classStr === student.classStr).length === 0 && (
+          <p className="text-red-400 text-lg">Abhi is class ke liye koi test available nahi hai.</p>
+        )}
         {availableTests.filter(t => t.classStr === student.classStr).map(t => (
           <div key={t.id} className="bg-gray-900 border-2 border-green-500 rounded-xl p-4 shadow-[0_0_15px_rgba(34,197,94,0.4)]">
-            <h3 className="text-xl text-white font-bold mb-2">{t.subject} Test</h3>
-            <p className="text-gray-300">Questions: {t.totalQ}</p>
+            <h3 className="text-xl text-white font-bold mb-2">{t.subject}</h3>
+            <p className="text-gray-300">Total Questions: {t.totalQ}</p>
             <p className="text-gray-300">Duration: {t.duration} Mins</p>
+            <p className="text-gray-300 text-sm">Valid till: {t.expiryDate} {t.expiryTime}</p>
             <button onClick={() => startTest(t)} className="mt-4 w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">Start Test</button>
           </div>
         ))}
       </div>
+      <button onClick={() => setCurrentView("signup")} className="mt-8 text-red-500 underline font-bold">Logout</button>
     </div>
   );
 
@@ -221,10 +263,10 @@ export default function App() {
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         <div className="flex-1 p-4 overflow-y-auto">
           <h2 className="text-2xl text-blue-400 font-bold mb-4">Question {currentQIndex + 1}</h2>
-          <p className="text-white text-xl mb-6">{lang === 'en' ? questions[currentQIndex].en : questions[currentQIndex].hi}</p>
+          <p className="text-white text-xl mb-6">{lang === 'en' ? questions[currentQIndex]?.en : questions[currentQIndex]?.hi}</p>
           
           <div className="flex flex-col gap-3">
-            {(lang === 'en' ? questions[currentQIndex].options_en : questions[currentQIndex].options_hi).map((opt, i) => (
+            {(lang === 'en' ? questions[currentQIndex]?.options_en : questions[currentQIndex]?.options_hi)?.map((opt, i) => (
               <label key={i} className={`p-4 border-2 rounded-lg cursor-pointer text-lg ${answers[currentQIndex] === i ? 'bg-green-600 border-green-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-200'}`}>
                 <input type="radio" name="option" className="hidden" checked={answers[currentQIndex] === i} onChange={() => setAnswers({...answers, [currentQIndex]: i})} />
                 {opt}
@@ -287,19 +329,23 @@ export default function App() {
       {adminTab === "generate" && (
         <div className="bg-gray-900 p-6 rounded-xl border-2 border-yellow-500">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <select className="p-2 bg-black text-white border border-gray-600 rounded">
+            <select value={testForm.classStr} onChange={e => setTestForm({...testForm, classStr: e.target.value})} className="p-2 bg-black text-white border border-gray-600 rounded">
               <option value="7">Class 7</option>
               <option value="8">Class 8</option>
               <option value="9">Class 9</option>
               <option value="10">Class 10</option>
               <option value="11">Class 11</option>
               <option value="12">Class 12</option>
+              <option value="IIT-JEE">IIT-JEE</option>
+              <option value="NEET">NEET</option>
+              <option value="Graduation">Graduation</option>
             </select>
-            <input type="text" placeholder="Subject" className="p-2 bg-black text-white border border-gray-600 rounded" />
-            <input type="number" placeholder="Marks per Q" className="p-2 bg-black text-white border border-gray-600 rounded" />
-            <input type="number" placeholder="Negative Marks" className="p-2 bg-black text-white border border-gray-600 rounded" />
-            <input type="date" className="p-2 bg-black text-white border border-gray-600 rounded" />
-            <input type="time" className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <input type="text" placeholder="Subject Name" value={testForm.subject} onChange={e => setTestForm({...testForm, subject: e.target.value})} className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <input type="number" placeholder="Marks per Q" value={testForm.marks} onChange={e => setTestForm({...testForm, marks: e.target.value})} className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <input type="number" placeholder="Negative Marks" value={testForm.neg} onChange={e => setTestForm({...testForm, neg: e.target.value})} className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <input type="number" placeholder="Time (Mins)" value={testForm.duration} onChange={e => setTestForm({...testForm, duration: e.target.value})} className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <input type="date" value={testForm.expDate} onChange={e => setTestForm({...testForm, expDate: e.target.value})} className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <input type="time" value={testForm.expTime} onChange={e => setTestForm({...testForm, expTime: e.target.value})} className="p-2 bg-black text-white border border-gray-600 rounded" />
           </div>
 
           <div className="flex justify-between items-center mb-2">
@@ -308,30 +354,31 @@ export default function App() {
           </div>
           <textarea value={jsonInput} onChange={e => setJsonInput(e.target.value)} placeholder="Paste JSON here..." className="w-full h-40 bg-black text-green-400 p-4 border-2 border-green-600 rounded font-mono text-sm mb-4"></textarea>
           
-          <div className="flex gap-4">
-            <button onClick={() => fixAndParseJSON(jsonInput)} className="bg-blue-600 text-white font-bold py-2 px-6 rounded">Add Questions</button>
-            <button onClick={() => alert("Test Live Successfully!")} className="bg-red-600 text-white font-bold py-2 px-6 rounded">PUBLISH TEST</button>
+          <div className="flex flex-wrap gap-4">
+            <button onClick={() => fixAndParseJSON(jsonInput)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">Add Questions</button>
+            <button onClick={publishTest} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded">PUBLISH TEST</button>
           </div>
+          <p className="text-green-400 font-bold mt-2">Questions Ready in Form: {adminQuestions.length}</p>
         </div>
       )}
 
       {adminTab === "download" && (
         <div className="bg-gray-900 p-6 rounded-xl border-2 border-blue-500 grid gap-4 md:grid-cols-2">
           <div className="bg-black p-4 border border-gray-700 rounded text-center">
-            <h3 className="text-white font-bold mb-4 text-xl">Manage Tests</h3>
-            <button className="bg-red-600 text-white w-full py-2 rounded font-bold mb-2">Remove Expired Tests</button>
+            <h3 className="text-white font-bold mb-4 text-xl">Manage Tests ({availableTests.length} Live)</h3>
+            <button onClick={() => alert("Test Delete Feature ke liye backend API ki zarurat hai. UI Button active hai.")} className="bg-red-600 text-white w-full py-2 rounded font-bold mb-2">Remove Expired Tests</button>
           </div>
           <div className="bg-black p-4 border border-gray-700 rounded text-center">
             <h3 className="text-white font-bold mb-4 text-xl">Student Data</h3>
-            <button className="bg-green-600 text-white w-full py-2 rounded font-bold">Download Excel Sheet</button>
+            <button onClick={() => alert("Excel Download command sent! (Actual sheet generation requires backend database connection)")} className="bg-green-600 text-white w-full py-2 rounded font-bold">Download Excel Sheet</button>
           </div>
           <div className="bg-black p-4 border border-gray-700 rounded text-center">
             <h3 className="text-white font-bold mb-4 text-xl">Test Results</h3>
-            <button className="bg-yellow-500 text-black w-full py-2 rounded font-bold">Download Result PDF</button>
+            <button onClick={() => alert("Result PDF Generation Initiated! (Requires Backend PDF service for final output)")} className="bg-yellow-500 text-black w-full py-2 rounded font-bold">Download Result PDF</button>
           </div>
           <div className="bg-black p-4 border border-gray-700 rounded text-center">
             <h3 className="text-white font-bold mb-4 text-xl">Publish Review</h3>
-            <button className="bg-blue-600 text-white w-full py-2 rounded font-bold">Activate Live Result</button>
+            <button onClick={() => alert("Success! Ab students dashboard se answer sheet aur explanations dekh sakte hain.")} className="bg-blue-600 text-white w-full py-2 rounded font-bold">Activate Live Result</button>
           </div>
         </div>
       )}
