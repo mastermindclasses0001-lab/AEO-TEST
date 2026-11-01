@@ -1,23 +1,19 @@
 import React, { useState, useEffect } from 'react';
 
-// --- MAIN APPLICATION COMPONENT ---
 export default function App() {
-  // === SYSTEM STATES ===
   const [branding, setBranding] = useState("ACADEMIC EXCELLENCE OLYMPIAD");
-  const [currentView, setCurrentView] = useState("signup"); // signup, dashboard, instructions, test, result, admin
+  const [currentView, setCurrentView] = useState("signup"); 
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
 
-  // === STUDENT STATES ===
   const [student, setStudent] = useState({ name: '', school: '', classStr: '', phone: '', guardianPhone: '' });
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
 
-  // === TEST STATES ===
   const [availableTests, setAvailableTests] = useState([
     { id: 1, classStr: "10", subject: "Maths", totalQ: 10, marks: 4, neg: 1, duration: 60, expiryDate: "2026-06-20", expiryTime: "16:00" }
   ]);
   const [activeTest, setActiveTest] = useState(null);
-  const [lang, setLang] = useState("en"); // en or hi
+  const [lang, setLang] = useState("en");
   const [questions, setQuestions] = useState([
     { id: 1, en: "What is 2+2?", hi: "2+2 kya hai?", options_en: ["3", "4", "5", "6"], options_hi: ["3", "4", "5", "6"], ans: 1 }
   ]);
@@ -27,19 +23,17 @@ export default function App() {
   const [warnings, setWarnings] = useState(0);
   const [score, setScore] = useState(0);
 
-  // === ADMIN STATES ===
-  const [adminTab, setAdminTab] = useState("generate"); // generate, download
+  const [adminTab, setAdminTab] = useState("generate");
   const [testForm, setTestForm] = useState({ classStr: '10', subject: '', totalQ: '', marks: '', neg: '', expDate: '', expTime: '' });
   const [jsonInput, setJsonInput] = useState("");
   const [adminQuestions, setAdminQuestions] = useState([]);
 
-  // === ANTI-CHEAT & TIMER EFFECTS ===
   useEffect(() => {
     let timer;
     if (currentView === 'test' && timeLeft > 0) {
       timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
     } else if (currentView === 'test' && timeLeft === 0) {
-      handleTestSubmit(); // Auto Submit
+      handleTestSubmit(); 
     }
     return () => clearInterval(timer);
   }, [currentView, timeLeft]);
@@ -63,8 +57,6 @@ export default function App() {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [currentView]);
 
-
-  // === HANDLERS ===
   const handleSignup = (e) => {
     e.preventDefault();
     setOtpSent(true);
@@ -74,7 +66,6 @@ export default function App() {
     e.preventDefault();
     if (otp === "1234") {
       setCurrentView("dashboard");
-      // LocalStorage me save karne ka code yahan aayega permanent login ke liye
     } else {
       alert("Galat OTP!");
     }
@@ -90,7 +81,6 @@ export default function App() {
   };
 
   const handleTestSubmit = () => {
-    // Score Calculation
     let tempScore = 0;
     Object.keys(answers).forEach(qIndex => {
       if (answers[qIndex] === questions[qIndex].ans) tempScore += activeTest.marks;
@@ -105,29 +95,30 @@ export default function App() {
     if (pass === "525077") {
       setIsAdminLoggedIn(true);
       setCurrentView("admin");
+    } else if (pass !== null) {
+      alert("Galat Password!");
     }
   };
 
   const fixAndParseJSON = (str) => {
     try {
-      // Basic auto-correct for trailing commas or missing quotes can be complex,
-      // using standard JSON.parse for now, surrounded by try-catch.
       const parsed = JSON.parse(str);
       setAdminQuestions(prev => [...prev, ...(Array.isArray(parsed) ? parsed : [parsed])]);
       setJsonInput("");
       alert("Questions successfully loaded!");
     } catch (e) {
-      alert("JSON format me error hai. Software koshish kar raha hai theek karne ki... kripya brackets check karein.");
+      alert("JSON format me error hai. Brackets check karein.");
     }
   };
 
-
-  // === UI RENDERERS ===
-
   if (currentView === "signup") return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
-      {/* HIDDEN ADMIN TRIGGER */}
-      <div onClick={handleAdminAuth} className="absolute top-0 right-0 w-12 h-12 bg-transparent cursor-default"></div>
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 relative">
+      {/* Ekdam halka outline wala admin box, top right corner me */}
+      <div 
+        onClick={handleAdminAuth} 
+        className="absolute top-4 right-4 w-8 h-8 border border-gray-800 rounded cursor-pointer opacity-30 hover:opacity-100 transition-opacity"
+        title="Admin Area"
+      ></div>
 
       <h1 className="text-3xl md:text-5xl font-extrabold text-yellow-400 mb-6 text-center">{branding}</h1>
       <div className="bg-gray-900 border-4 border-red-500 rounded-2xl p-6 w-full max-w-md shadow-[0_0_20px_rgba(239,68,68,0.6)]">
@@ -138,6 +129,8 @@ export default function App() {
             <input type="text" placeholder="School Name" required onChange={e => setStudent({...student, school: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg" />
             <select required onChange={e => setStudent({...student, classStr: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg">
               <option value="">Select Class</option>
+              <option value="7">Class 7</option>
+              <option value="8">Class 8</option>
               <option value="9">Class 9</option>
               <option value="10">Class 10</option>
               <option value="11">Class 11</option>
@@ -189,11 +182,10 @@ export default function App() {
               <li>Each correct answer gives {activeTest.marks} marks. Negative marking is {activeTest.neg}.</li>
               <li>Do not change your browser tab or screen.</li>
               <li>After 2 screen change warnings, test will be auto-submitted.</li>
-              <li>You can change question language anytime during the test.</li>
+              <li>You can change question language anytime.</li>
               <li>Use the Question Palette at the top to jump to any question.</li>
               <li>Click 'Submit Test' anytime if you are done.</li>
               <li>Results will be shown immediately after submission.</li>
-              <li>Detailed review will be available after expiry time.</li>
             </>
           ) : (
             <>
@@ -203,10 +195,9 @@ export default function App() {
               <li>ब्राउज़र टैब या स्क्रीन न बदलें।</li>
               <li>2 बार स्क्रीन बदलने की चेतावनी के बाद टेस्ट अपने आप सबमिट हो जाएगा।</li>
               <li>आप टेस्ट के दौरान कभी भी भाषा बदल सकते हैं।</li>
-              <li>किसी भी प्रश्न पर सीधे जाने के लिए ऊपर दिए गए पैलेट का उपयोग करें।</li>
+              <li>किसी भी प्रश्न पर सीधे जाने के लिए पैलेट का उपयोग करें।</li>
               <li>यदि आप समाप्त कर चुके हैं तो कभी भी 'Submit Test' पर क्लिक करें।</li>
               <li>सबमिट करने के तुरंत बाद परिणाम दिखाया जाएगा।</li>
-              <li>विस्तृत समीक्षा एक्सपायरी समय के बाद उपलब्ध होगी।</li>
             </>
           )}
         </ul>
@@ -217,11 +208,10 @@ export default function App() {
 
   if (currentView === "test") return (
     <div className="min-h-screen bg-black flex flex-col font-sans">
-      {/* TOP BAR - JEE STYLE */}
       <div className="bg-gray-900 border-b-4 border-red-600 p-2 flex flex-wrap justify-between items-center sticky top-0 z-10">
         <h1 className="text-yellow-400 font-bold text-lg md:text-2xl">{branding}</h1>
         <div className="flex gap-4 items-center">
-          <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="bg-blue-600 text-white px-3 py-1 rounded text-sm md:text-base font-bold">A/अ</button>
+          <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="bg-blue-600 text-white px-3 py-1 rounded font-bold">A/अ</button>
           <div className="text-red-500 font-mono font-bold text-xl md:text-3xl bg-black px-4 py-1 rounded border-2 border-red-500">
             {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
           </div>
@@ -229,7 +219,6 @@ export default function App() {
       </div>
 
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-        {/* QUESTION AREA */}
         <div className="flex-1 p-4 overflow-y-auto">
           <h2 className="text-2xl text-blue-400 font-bold mb-4">Question {currentQIndex + 1}</h2>
           <p className="text-white text-xl mb-6">{lang === 'en' ? questions[currentQIndex].en : questions[currentQIndex].hi}</p>
@@ -246,14 +235,13 @@ export default function App() {
           <div className="mt-8 flex justify-between gap-2">
             <button disabled={currentQIndex === 0} onClick={() => setCurrentQIndex(prev => prev - 1)} className="bg-yellow-500 text-black px-6 py-2 rounded font-bold disabled:opacity-50">Previous</button>
             {currentQIndex === questions.length - 1 ? (
-              <button onClick={handleTestSubmit} className="bg-red-600 text-white px-6 py-2 rounded font-bold">Submit Test</button>
+              <button onClick={handleTestSubmit} className="bg-red-600 text-white px-6 py-2 rounded font-bold">Submit</button>
             ) : (
               <button onClick={() => setCurrentQIndex(prev => prev + 1)} className="bg-blue-500 text-white px-6 py-2 rounded font-bold">Next</button>
             )}
           </div>
         </div>
 
-        {/* PALETTE AREA */}
         <div className="md:w-64 bg-gray-900 border-l-4 border-yellow-500 p-4 overflow-y-auto hidden md:block">
           <h3 className="text-white font-bold mb-4">Question Palette</h3>
           <div className="grid grid-cols-4 gap-2">
@@ -263,7 +251,7 @@ export default function App() {
               </button>
             ))}
           </div>
-          <button onClick={handleTestSubmit} className="mt-8 w-full bg-red-600 text-white py-3 rounded font-bold hover:bg-red-700 border-2 border-white">FINAL SUBMIT</button>
+          <button onClick={handleTestSubmit} className="mt-8 w-full bg-red-600 text-white py-3 rounded font-bold hover:bg-red-700">FINAL SUBMIT</button>
         </div>
       </div>
     </div>
@@ -276,7 +264,7 @@ export default function App() {
         <h2 className="text-3xl text-white font-bold mb-4">Test Submitted Successfully</h2>
         <p className="text-2xl text-yellow-400 mb-6">Your Score: {score}</p>
         <p className="text-lg text-gray-300 border-t border-gray-700 pt-4">
-          Detailed review and answer explanations will be available after <br/>
+          Detailed review available after <br/>
           <strong className="text-red-400">{activeTest?.expiryDate} at {activeTest?.expiryTime}</strong>.
         </p>
         <button onClick={() => setCurrentView("dashboard")} className="mt-6 bg-blue-600 text-white px-6 py-2 rounded font-bold">Back to Dashboard</button>
@@ -288,7 +276,7 @@ export default function App() {
     <div className="min-h-screen bg-black p-4 md:p-8 font-sans">
       <div className="flex justify-between items-center mb-8 border-b-2 border-yellow-500 pb-4">
         <h1 className="text-3xl md:text-5xl font-extrabold text-red-500">ADMIN PANEL</h1>
-        <button onClick={() => setCurrentView("dashboard")} className="text-blue-400 underline">Exit Admin</button>
+        <button onClick={() => setCurrentView("signup")} className="text-blue-400 underline">Logout Admin</button>
       </div>
 
       <div className="flex gap-4 mb-6">
@@ -299,7 +287,14 @@ export default function App() {
       {adminTab === "generate" && (
         <div className="bg-gray-900 p-6 rounded-xl border-2 border-yellow-500">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <input type="text" placeholder="Class" className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <select className="p-2 bg-black text-white border border-gray-600 rounded">
+              <option value="7">Class 7</option>
+              <option value="8">Class 8</option>
+              <option value="9">Class 9</option>
+              <option value="10">Class 10</option>
+              <option value="11">Class 11</option>
+              <option value="12">Class 12</option>
+            </select>
             <input type="text" placeholder="Subject" className="p-2 bg-black text-white border border-gray-600 rounded" />
             <input type="number" placeholder="Marks per Q" className="p-2 bg-black text-white border border-gray-600 rounded" />
             <input type="number" placeholder="Negative Marks" className="p-2 bg-black text-white border border-gray-600 rounded" />
@@ -309,15 +304,14 @@ export default function App() {
 
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-xl text-yellow-400 font-bold">Paste Questions (JSON)</h3>
-            <button onClick={() => alert("Prompt to copy:\n'Generate 10 multiple choice questions on [Topic] in JSON format. Keys: en (English question), hi (Hindi question), options_en (Array of 4), options_hi (Array of 4), ans (0-3 index), explanation.'")} className="bg-green-600 text-white px-4 py-1 rounded text-sm font-bold">Generate AI Prompt</button>
+            <button onClick={() => alert("Prompt to copy:\n'Generate multiple choice questions in JSON format. Keys: en, hi, options_en (Array of 4), options_hi (Array of 4), ans (0-3 index), explanation.'")} className="bg-green-600 text-white px-4 py-1 rounded text-sm font-bold">AI Prompt</button>
           </div>
           <textarea value={jsonInput} onChange={e => setJsonInput(e.target.value)} placeholder="Paste JSON here..." className="w-full h-40 bg-black text-green-400 p-4 border-2 border-green-600 rounded font-mono text-sm mb-4"></textarea>
           
           <div className="flex gap-4">
-            <button onClick={() => fixAndParseJSON(jsonInput)} className="bg-blue-600 text-white font-bold py-2 px-6 rounded">Add/Append Questions</button>
+            <button onClick={() => fixAndParseJSON(jsonInput)} className="bg-blue-600 text-white font-bold py-2 px-6 rounded">Add Questions</button>
             <button onClick={() => alert("Test Live Successfully!")} className="bg-red-600 text-white font-bold py-2 px-6 rounded">PUBLISH TEST</button>
           </div>
-          <p className="text-gray-400 mt-2">Questions loaded: {adminQuestions.length}</p>
         </div>
       )}
 
@@ -329,15 +323,15 @@ export default function App() {
           </div>
           <div className="bg-black p-4 border border-gray-700 rounded text-center">
             <h3 className="text-white font-bold mb-4 text-xl">Student Data</h3>
-            <button onClick={() => alert("Requires backend (xlsx package) to generate Excel.")} className="bg-green-600 text-white w-full py-2 rounded font-bold">Download Excel Sheet</button>
+            <button className="bg-green-600 text-white w-full py-2 rounded font-bold">Download Excel Sheet</button>
           </div>
           <div className="bg-black p-4 border border-gray-700 rounded text-center">
             <h3 className="text-white font-bold mb-4 text-xl">Test Results</h3>
-            <button onClick={() => alert("Requires backend (jsPDF package) to generate Colorful PDF.")} className="bg-yellow-500 text-black w-full py-2 rounded font-bold">Download Result PDF</button>
+            <button className="bg-yellow-500 text-black w-full py-2 rounded font-bold">Download Result PDF</button>
           </div>
           <div className="bg-black p-4 border border-gray-700 rounded text-center">
             <h3 className="text-white font-bold mb-4 text-xl">Publish Review</h3>
-            <button onClick={() => alert("Students can now view their answers and explanations.")} className="bg-blue-600 text-white w-full py-2 rounded font-bold">Activate Live Result</button>
+            <button className="bg-blue-600 text-white w-full py-2 rounded font-bold">Activate Live Result</button>
           </div>
         </div>
       )}
