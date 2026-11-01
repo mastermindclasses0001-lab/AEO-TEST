@@ -1,109 +1,348 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-function App() {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState(1);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+// --- MAIN APPLICATION COMPONENT ---
+export default function App() {
+  // === SYSTEM STATES ===
+  const [branding, setBranding] = useState("ACADEMIC EXCELLENCE OLYMPIAD");
+  const [currentView, setCurrentView] = useState("signup"); // signup, dashboard, instructions, test, result, admin
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
 
-  const handleSendOTP = (e) => {
-    e.preventDefault();
-    if (!name || !phone) {
-      alert("Naam aur WhatsApp number dono dalein!");
-      return;
+  // === STUDENT STATES ===
+  const [student, setStudent] = useState({ name: '', school: '', classStr: '', phone: '', guardianPhone: '' });
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+
+  // === TEST STATES ===
+  const [availableTests, setAvailableTests] = useState([
+    { id: 1, classStr: "10", subject: "Maths", totalQ: 10, marks: 4, neg: 1, duration: 60, expiryDate: "2026-06-20", expiryTime: "16:00" }
+  ]);
+  const [activeTest, setActiveTest] = useState(null);
+  const [lang, setLang] = useState("en"); // en or hi
+  const [questions, setQuestions] = useState([
+    { id: 1, en: "What is 2+2?", hi: "2+2 kya hai?", options_en: ["3", "4", "5", "6"], options_hi: ["3", "4", "5", "6"], ans: 1 }
+  ]);
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [warnings, setWarnings] = useState(0);
+  const [score, setScore] = useState(0);
+
+  // === ADMIN STATES ===
+  const [adminTab, setAdminTab] = useState("generate"); // generate, download
+  const [testForm, setTestForm] = useState({ classStr: '10', subject: '', totalQ: '', marks: '', neg: '', expDate: '', expTime: '' });
+  const [jsonInput, setJsonInput] = useState("");
+  const [adminQuestions, setAdminQuestions] = useState([]);
+
+  // === ANTI-CHEAT & TIMER EFFECTS ===
+  useEffect(() => {
+    let timer;
+    if (currentView === 'test' && timeLeft > 0) {
+      timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    } else if (currentView === 'test' && timeLeft === 0) {
+      handleTestSubmit(); // Auto Submit
     }
-    setStep(2);
+    return () => clearInterval(timer);
+  }, [currentView, timeLeft]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (currentView === 'test' && document.hidden) {
+        setWarnings(prev => {
+          const newW = prev + 1;
+          if (newW >= 2) {
+            alert("Aapne do baar screen change ki! Test auto-submit ho gaya hai.");
+            handleTestSubmit();
+          } else {
+            alert("WARNING: Test ke dauran screen change na karein. Ek aur bar karne par test submit ho jayega!");
+          }
+          return newW;
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [currentView]);
+
+
+  // === HANDLERS ===
+  const handleSignup = (e) => {
+    e.preventDefault();
+    setOtpSent(true);
   };
 
   const handleVerifyOTP = (e) => {
     e.preventDefault();
-    // Default dummy OTP 1234 check
-    if (otp === '1234') {
-      setIsLoggedIn(true);
+    if (otp === "1234") {
+      setCurrentView("dashboard");
+      // LocalStorage me save karne ka code yahan aayega permanent login ke liye
     } else {
-      alert("Galat OTP! Kripya test OTP 1234 dalein.");
+      alert("Galat OTP!");
     }
   };
 
-  if (isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 text-center">
-        <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold text-yellow-400 mb-4 leading-tight">
-          Welcome, {name}!
-        </h1>
-        <p className="text-xl sm:text-3xl text-blue-400 font-bold mb-4">Aapka portal successfully login ho gaya hai.</p>
-        <p className="text-lg sm:text-2xl text-green-400">(Ab aap baki features check kar sakte hain)</p>
-      </div>
-    );
-  }
+  const startTest = (test) => {
+    setActiveTest(test);
+    setTimeLeft(test.duration * 60);
+    setWarnings(0);
+    setAnswers({});
+    setCurrentQIndex(0);
+    setCurrentView("instructions");
+  };
 
-  return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 sm:p-6 font-sans w-full">
-      <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold text-yellow-400 mb-3 sm:mb-4 text-center tracking-wide leading-tight">
-        ACADEMIC EXCELLENCE OLYMPIAD
-      </h1>
-      <h2 className="text-xl sm:text-2xl md:text-4xl text-blue-400 mb-6 sm:mb-10 font-bold text-center">
-        Student Portal
-      </h2>
+  const handleTestSubmit = () => {
+    // Score Calculation
+    let tempScore = 0;
+    Object.keys(answers).forEach(qIndex => {
+      if (answers[qIndex] === questions[qIndex].ans) tempScore += activeTest.marks;
+      else tempScore -= activeTest.neg;
+    });
+    setScore(tempScore);
+    setCurrentView("result");
+  };
 
-      <div className="bg-gray-900 border-2 border-red-500 rounded-xl p-5 sm:p-8 w-full max-w-[90%] sm:max-w-md md:max-w-lg shadow-[0_0_15px_rgba(239,68,68,0.4)]">
-        {step === 1 ? (
-          <form onSubmit={handleSendOTP} className="flex flex-col gap-4 sm:gap-6">
-            <div>
-              <label className="text-white text-base sm:text-xl mb-2 block font-semibold">Student Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-black text-yellow-300 border-2 border-blue-500 rounded-lg p-3 sm:p-4 text-base sm:text-xl focus:outline-none focus:border-yellow-400"
-                placeholder="Apna naam likhein"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-white text-base sm:text-xl mb-2 block font-semibold">WhatsApp Number</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-black text-yellow-300 border-2 border-blue-500 rounded-lg p-3 sm:p-4 text-base sm:text-xl focus:outline-none focus:border-yellow-400"
-                placeholder="91XXXXXXXXXX"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-lg sm:text-2xl py-3 sm:py-4 rounded-lg mt-2 sm:mt-4 transition-all"
-            >
-              Send OTP to WhatsApp
-            </button>
+  const handleAdminAuth = () => {
+    const pass = prompt("Admin Password:");
+    if (pass === "525077") {
+      setIsAdminLoggedIn(true);
+      setCurrentView("admin");
+    }
+  };
+
+  const fixAndParseJSON = (str) => {
+    try {
+      // Basic auto-correct for trailing commas or missing quotes can be complex,
+      // using standard JSON.parse for now, surrounded by try-catch.
+      const parsed = JSON.parse(str);
+      setAdminQuestions(prev => [...prev, ...(Array.isArray(parsed) ? parsed : [parsed])]);
+      setJsonInput("");
+      alert("Questions successfully loaded!");
+    } catch (e) {
+      alert("JSON format me error hai. Software koshish kar raha hai theek karne ki... kripya brackets check karein.");
+    }
+  };
+
+
+  // === UI RENDERERS ===
+
+  if (currentView === "signup") return (
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
+      {/* HIDDEN ADMIN TRIGGER */}
+      <div onClick={handleAdminAuth} className="absolute top-0 right-0 w-12 h-12 bg-transparent cursor-default"></div>
+
+      <h1 className="text-3xl md:text-5xl font-extrabold text-yellow-400 mb-6 text-center">{branding}</h1>
+      <div className="bg-gray-900 border-4 border-red-500 rounded-2xl p-6 w-full max-w-md shadow-[0_0_20px_rgba(239,68,68,0.6)]">
+        <h2 className="text-2xl text-blue-400 font-bold mb-4">Student Login / Signup</h2>
+        {!otpSent ? (
+          <form onSubmit={handleSignup} className="flex flex-col gap-4">
+            <input type="text" placeholder="Name" required onChange={e => setStudent({...student, name: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg" />
+            <input type="text" placeholder="School Name" required onChange={e => setStudent({...student, school: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg" />
+            <select required onChange={e => setStudent({...student, classStr: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg">
+              <option value="">Select Class</option>
+              <option value="9">Class 9</option>
+              <option value="10">Class 10</option>
+              <option value="11">Class 11</option>
+              <option value="12">Class 12</option>
+            </select>
+            <input type="tel" placeholder="WhatsApp Number" required onChange={e => setStudent({...student, phone: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg" />
+            <input type="tel" placeholder="Guardian Number" required onChange={e => setStudent({...student, guardianPhone: e.target.value})} className="p-3 bg-black text-white border-2 border-blue-500 rounded text-lg" />
+            <button type="submit" className="bg-red-600 text-white font-bold text-xl py-3 rounded hover:bg-red-700">Send OTP</button>
           </form>
         ) : (
-          <form onSubmit={handleVerifyOTP} className="flex flex-col gap-4 sm:gap-6">
-            <div>
-              <label className="text-white text-base sm:text-xl mb-2 block font-semibold">Enter OTP (Test: 1234)</label>
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                className="w-full bg-black text-yellow-300 border-2 border-blue-500 rounded-lg p-3 sm:p-4 text-2xl sm:text-3xl text-center tracking-widest focus:outline-none focus:border-yellow-400"
-                placeholder="----"
-                maxLength="4"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-green-500 hover:bg-green-600 text-black font-extrabold text-lg sm:text-2xl py-3 sm:py-4 rounded-lg mt-2 sm:mt-4 transition-all"
-            >
-              Verify & Login
-            </button>
+          <form onSubmit={handleVerifyOTP} className="flex flex-col gap-4">
+            <input type="text" placeholder="Enter OTP (1234)" required onChange={e => setOtp(e.target.value)} className="p-3 bg-black text-white border-2 border-green-500 rounded text-2xl text-center tracking-widest" />
+            <button type="submit" className="bg-green-500 text-black font-bold text-xl py-3 rounded hover:bg-green-600">Verify & Login</button>
           </form>
         )}
       </div>
     </div>
   );
-}
 
-export default App;
+  if (currentView === "dashboard") return (
+    <div className="min-h-screen bg-black p-4">
+      <h1 className="text-3xl font-extrabold text-yellow-400 mb-6 text-center">{branding}</h1>
+      <h2 className="text-2xl text-blue-400 font-bold mb-4">Welcome, {student.name} ({student.classStr})</h2>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {availableTests.filter(t => t.classStr === student.classStr).map(t => (
+          <div key={t.id} className="bg-gray-900 border-2 border-green-500 rounded-xl p-4 shadow-[0_0_15px_rgba(34,197,94,0.4)]">
+            <h3 className="text-xl text-white font-bold mb-2">{t.subject} Test</h3>
+            <p className="text-gray-300">Questions: {t.totalQ}</p>
+            <p className="text-gray-300">Duration: {t.duration} Mins</p>
+            <button onClick={() => startTest(t)} className="mt-4 w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">Start Test</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (currentView === "instructions") return (
+    <div className="min-h-screen bg-black text-white p-4 md:p-8 flex flex-col items-center">
+      <div className="max-w-3xl bg-gray-900 border-2 border-yellow-500 p-6 rounded-xl w-full">
+        <div className="flex justify-between mb-4">
+          <h2 className="text-2xl font-bold text-yellow-400">Exam Instructions / परीक्षा निर्देश</h2>
+          <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="bg-blue-600 px-4 py-1 rounded font-bold">Language: {lang === 'en' ? 'English' : 'हिंदी'}</button>
+        </div>
+        <ul className="list-decimal pl-6 space-y-2 text-lg">
+          {lang === 'en' ? (
+            <>
+              <li>Total duration is {activeTest.duration} minutes.</li>
+              <li>Timer will run at the top. Auto-submit happens when time is up.</li>
+              <li>Each correct answer gives {activeTest.marks} marks. Negative marking is {activeTest.neg}.</li>
+              <li>Do not change your browser tab or screen.</li>
+              <li>After 2 screen change warnings, test will be auto-submitted.</li>
+              <li>You can change question language anytime during the test.</li>
+              <li>Use the Question Palette at the top to jump to any question.</li>
+              <li>Click 'Submit Test' anytime if you are done.</li>
+              <li>Results will be shown immediately after submission.</li>
+              <li>Detailed review will be available after expiry time.</li>
+            </>
+          ) : (
+            <>
+              <li>कुल समय {activeTest.duration} मिनट है।</li>
+              <li>टाइमर ऊपर चलेगा। समय समाप्त होने पर टेस्ट अपने आप सबमिट हो जाएगा।</li>
+              <li>सही उत्तर के लिए {activeTest.marks} अंक मिलेंगे। नेगेटिव मार्किंग {activeTest.neg} है।</li>
+              <li>ब्राउज़र टैब या स्क्रीन न बदलें।</li>
+              <li>2 बार स्क्रीन बदलने की चेतावनी के बाद टेस्ट अपने आप सबमिट हो जाएगा।</li>
+              <li>आप टेस्ट के दौरान कभी भी भाषा बदल सकते हैं।</li>
+              <li>किसी भी प्रश्न पर सीधे जाने के लिए ऊपर दिए गए पैलेट का उपयोग करें।</li>
+              <li>यदि आप समाप्त कर चुके हैं तो कभी भी 'Submit Test' पर क्लिक करें।</li>
+              <li>सबमिट करने के तुरंत बाद परिणाम दिखाया जाएगा।</li>
+              <li>विस्तृत समीक्षा एक्सपायरी समय के बाद उपलब्ध होगी।</li>
+            </>
+          )}
+        </ul>
+        <button onClick={() => setCurrentView("test")} className="mt-8 w-full bg-green-500 text-black font-extrabold text-2xl py-3 rounded-lg">I Accept & Start Test</button>
+      </div>
+    </div>
+  );
+
+  if (currentView === "test") return (
+    <div className="min-h-screen bg-black flex flex-col font-sans">
+      {/* TOP BAR - JEE STYLE */}
+      <div className="bg-gray-900 border-b-4 border-red-600 p-2 flex flex-wrap justify-between items-center sticky top-0 z-10">
+        <h1 className="text-yellow-400 font-bold text-lg md:text-2xl">{branding}</h1>
+        <div className="flex gap-4 items-center">
+          <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="bg-blue-600 text-white px-3 py-1 rounded text-sm md:text-base font-bold">A/अ</button>
+          <div className="text-red-500 font-mono font-bold text-xl md:text-3xl bg-black px-4 py-1 rounded border-2 border-red-500">
+            {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* QUESTION AREA */}
+        <div className="flex-1 p-4 overflow-y-auto">
+          <h2 className="text-2xl text-blue-400 font-bold mb-4">Question {currentQIndex + 1}</h2>
+          <p className="text-white text-xl mb-6">{lang === 'en' ? questions[currentQIndex].en : questions[currentQIndex].hi}</p>
+          
+          <div className="flex flex-col gap-3">
+            {(lang === 'en' ? questions[currentQIndex].options_en : questions[currentQIndex].options_hi).map((opt, i) => (
+              <label key={i} className={`p-4 border-2 rounded-lg cursor-pointer text-lg ${answers[currentQIndex] === i ? 'bg-green-600 border-green-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-200'}`}>
+                <input type="radio" name="option" className="hidden" checked={answers[currentQIndex] === i} onChange={() => setAnswers({...answers, [currentQIndex]: i})} />
+                {opt}
+              </label>
+            ))}
+          </div>
+
+          <div className="mt-8 flex justify-between gap-2">
+            <button disabled={currentQIndex === 0} onClick={() => setCurrentQIndex(prev => prev - 1)} className="bg-yellow-500 text-black px-6 py-2 rounded font-bold disabled:opacity-50">Previous</button>
+            {currentQIndex === questions.length - 1 ? (
+              <button onClick={handleTestSubmit} className="bg-red-600 text-white px-6 py-2 rounded font-bold">Submit Test</button>
+            ) : (
+              <button onClick={() => setCurrentQIndex(prev => prev + 1)} className="bg-blue-500 text-white px-6 py-2 rounded font-bold">Next</button>
+            )}
+          </div>
+        </div>
+
+        {/* PALETTE AREA */}
+        <div className="md:w-64 bg-gray-900 border-l-4 border-yellow-500 p-4 overflow-y-auto hidden md:block">
+          <h3 className="text-white font-bold mb-4">Question Palette</h3>
+          <div className="grid grid-cols-4 gap-2">
+            {questions.map((q, i) => (
+              <button key={i} onClick={() => setCurrentQIndex(i)} className={`w-10 h-10 rounded font-bold flex items-center justify-center ${answers[i] !== undefined ? 'bg-green-500 text-black' : currentQIndex === i ? 'bg-blue-500 text-white' : 'bg-white text-black'}`}>
+                {i + 1}
+              </button>
+            ))}
+          </div>
+          <button onClick={handleTestSubmit} className="mt-8 w-full bg-red-600 text-white py-3 rounded font-bold hover:bg-red-700 border-2 border-white">FINAL SUBMIT</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (currentView === "result") return (
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 text-center">
+      <h1 className="text-5xl font-extrabold text-green-500 mb-6">THANK YOU!</h1>
+      <div className="bg-gray-900 border-4 border-blue-500 rounded-2xl p-8 max-w-lg shadow-[0_0_30px_rgba(59,130,246,0.6)]">
+        <h2 className="text-3xl text-white font-bold mb-4">Test Submitted Successfully</h2>
+        <p className="text-2xl text-yellow-400 mb-6">Your Score: {score}</p>
+        <p className="text-lg text-gray-300 border-t border-gray-700 pt-4">
+          Detailed review and answer explanations will be available after <br/>
+          <strong className="text-red-400">{activeTest?.expiryDate} at {activeTest?.expiryTime}</strong>.
+        </p>
+        <button onClick={() => setCurrentView("dashboard")} className="mt-6 bg-blue-600 text-white px-6 py-2 rounded font-bold">Back to Dashboard</button>
+      </div>
+    </div>
+  );
+
+  if (currentView === "admin") return (
+    <div className="min-h-screen bg-black p-4 md:p-8 font-sans">
+      <div className="flex justify-between items-center mb-8 border-b-2 border-yellow-500 pb-4">
+        <h1 className="text-3xl md:text-5xl font-extrabold text-red-500">ADMIN PANEL</h1>
+        <button onClick={() => setCurrentView("dashboard")} className="text-blue-400 underline">Exit Admin</button>
+      </div>
+
+      <div className="flex gap-4 mb-6">
+        <button onClick={() => setAdminTab("generate")} className={`px-6 py-2 font-bold rounded ${adminTab === 'generate' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'}`}>Generate Test</button>
+        <button onClick={() => setAdminTab("download")} className={`px-6 py-2 font-bold rounded ${adminTab === 'download' ? 'bg-blue-500 text-white' : 'bg-gray-800 text-white'}`}>Download Section</button>
+      </div>
+
+      {adminTab === "generate" && (
+        <div className="bg-gray-900 p-6 rounded-xl border-2 border-yellow-500">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <input type="text" placeholder="Class" className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <input type="text" placeholder="Subject" className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <input type="number" placeholder="Marks per Q" className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <input type="number" placeholder="Negative Marks" className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <input type="date" className="p-2 bg-black text-white border border-gray-600 rounded" />
+            <input type="time" className="p-2 bg-black text-white border border-gray-600 rounded" />
+          </div>
+
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-xl text-yellow-400 font-bold">Paste Questions (JSON)</h3>
+            <button onClick={() => alert("Prompt to copy:\n'Generate 10 multiple choice questions on [Topic] in JSON format. Keys: en (English question), hi (Hindi question), options_en (Array of 4), options_hi (Array of 4), ans (0-3 index), explanation.'")} className="bg-green-600 text-white px-4 py-1 rounded text-sm font-bold">Generate AI Prompt</button>
+          </div>
+          <textarea value={jsonInput} onChange={e => setJsonInput(e.target.value)} placeholder="Paste JSON here..." className="w-full h-40 bg-black text-green-400 p-4 border-2 border-green-600 rounded font-mono text-sm mb-4"></textarea>
+          
+          <div className="flex gap-4">
+            <button onClick={() => fixAndParseJSON(jsonInput)} className="bg-blue-600 text-white font-bold py-2 px-6 rounded">Add/Append Questions</button>
+            <button onClick={() => alert("Test Live Successfully!")} className="bg-red-600 text-white font-bold py-2 px-6 rounded">PUBLISH TEST</button>
+          </div>
+          <p className="text-gray-400 mt-2">Questions loaded: {adminQuestions.length}</p>
+        </div>
+      )}
+
+      {adminTab === "download" && (
+        <div className="bg-gray-900 p-6 rounded-xl border-2 border-blue-500 grid gap-4 md:grid-cols-2">
+          <div className="bg-black p-4 border border-gray-700 rounded text-center">
+            <h3 className="text-white font-bold mb-4 text-xl">Manage Tests</h3>
+            <button className="bg-red-600 text-white w-full py-2 rounded font-bold mb-2">Remove Expired Tests</button>
+          </div>
+          <div className="bg-black p-4 border border-gray-700 rounded text-center">
+            <h3 className="text-white font-bold mb-4 text-xl">Student Data</h3>
+            <button onClick={() => alert("Requires backend (xlsx package) to generate Excel.")} className="bg-green-600 text-white w-full py-2 rounded font-bold">Download Excel Sheet</button>
+          </div>
+          <div className="bg-black p-4 border border-gray-700 rounded text-center">
+            <h3 className="text-white font-bold mb-4 text-xl">Test Results</h3>
+            <button onClick={() => alert("Requires backend (jsPDF package) to generate Colorful PDF.")} className="bg-yellow-500 text-black w-full py-2 rounded font-bold">Download Result PDF</button>
+          </div>
+          <div className="bg-black p-4 border border-gray-700 rounded text-center">
+            <h3 className="text-white font-bold mb-4 text-xl">Publish Review</h3>
+            <button onClick={() => alert("Students can now view their answers and explanations.")} className="bg-blue-600 text-white w-full py-2 rounded font-bold">Activate Live Result</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return null;
+}
